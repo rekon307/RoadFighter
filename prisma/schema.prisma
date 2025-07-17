@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(uuid())
+  whopUserId       String   @unique @map("whop_user_id")
+  username         String   @db.VarChar(100)
+  creditsBalance   Decimal  @default(0) @map("credits_balance") @db.Decimal(10, 2)
+  tokensRemaining  Int      @default(3) @map("tokens_remaining")
+  lastTokenReset   DateTime @default(now()) @map("last_token_reset")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdSessions   GameSession[]    @relation("SessionCreator")
+  participations    GameParticipant[]
+  transactions      Transaction[]
+  leaderboardEntries DailyLeaderboard[]
+
+  @@map("users")
+}
+
+enum SessionStatus {
+  WAITING
+  STARTING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+
+  @@map("session_status")
+}
+
+model GameSession {
+  id             String        @id @default(uuid())
+  creatorId      String        @map("creator_id")
+  entryFee       Decimal       @map("entry_fee") @db.Decimal(10, 2)
+  maxPlayers     Int           @default(8) @map("max_players")
+  currentPlayers Int           @default(0) @map("current_players")
+  status         SessionStatus @default(WAITING)
+  gameData       Json?         @map("game_data")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  startedAt      DateTime?     @map("started_at")
+  endedAt        DateTime?     @map("ended_at")
+
+  // Relations
+  creator      User              @relation("SessionCreator", fields: [creatorId], references: [id])
+  participants GameParticipant[]
+  transactions Transaction[]
+
+  @@map("game_sessions")
+}
+
+model GameParticipant {
+  id               String    @id @default(uuid())
+  sessionId        String    @map("session_id")
+  userId           String    @map("user_id")
+  score            Int       @default(0)
+  distanceTraveled Decimal   @default(0) @map("distance_traveled") @db.Decimal(10, 2)
+  survivalTime     Int?      @map("survival_time") // in milliseconds
+  placement        Int?
+  joinedAt         DateTime  @default(now()) @map("joined_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  // Relations
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@map("game_participants")
+}
+
+model DailyLeaderboard {
+  id           String   @id @default(uuid())
+  date         DateTime @db.Date
+  userId       String   @map("user_id")
+  totalScore   Int      @map("total_score")
+  gamesPlayed  Int      @default(0) @map("games_played")
+  bestDistance Decimal  @default(0) @map("best_distance") @db.Decimal(10, 2)
+  rank         Int?
+  prizeAmount  Decimal  @default(0) @map("prize_amount") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([date, userId])
+  @@index([date, totalScore])
+  @@map("daily_leaderboards")
+}
+
+enum TransactionType {
+  ENTRY_FEE
+  PRIZE_PAYOUT
+  DEVELOPER_SPLIT
+  CREATOR_SPLIT
+  CREDIT_PURCHASE
+  REFUND
+
+  @@map("transaction_type")
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("transaction_status")
+}
+
+model Transaction {
+  id                String            @id @default(uuid())
+  userId            String            @map("user_id")
+  sessionId         String?           @map("session_id")
+  amount            Decimal           @db.Decimal(10, 2)
+  transactionType   TransactionType   @map("transaction_type")
+  whopTransactionId String?           @map("whop_transaction_id")
+  status            TransactionStatus @default(PENDING)
+  metadata          Json?
+  createdAt         DateTime          @default(now()) @map("created_at")
+  processedAt       DateTime?         @map("processed_at")
+
+  // Relations
+  user    User         @relation(fields: [userId], references: [id])
+  session GameSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([transactionType, status])
+  @@map("transactions")
+}
+
+// Token reset tracking
+model TokenReset {
+  id        String   @id @default(uuid())
+  date      DateTime @unique @db.Date
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("token_resets")
+}
+
+// Game settings and configuration
+model GameConfig {
+  id       String @id @default(uuid())
+  key      String @unique
+  value    String
+  category String
+  
+  @@map("game_config")
+}
