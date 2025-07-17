@@ -1,20 +1,51 @@
 import { ApiError, GameError } from '../types';
 
-// Utility functions for validation
+/**
+ * Game Business Rules Validation
+ * These functions enforce the core business rules for the multiplayer Road Fighter game
+ */
+
+// Validates entry fee amounts according to Whop platform requirements
+// Entry fees must be between $1.00 and $100.00 to ensure reasonable game stakes
 export const validateEntryFee = (amount: number): boolean => {
-  return amount >= 1.00 && amount <= 100.00 && Number.isFinite(amount);
+  const MIN_ENTRY_FEE = 1.00;
+  const MAX_ENTRY_FEE = 100.00;
+  
+  return amount >= MIN_ENTRY_FEE && 
+         amount <= MAX_ENTRY_FEE && 
+         Number.isFinite(amount);
 };
 
+// Validates usernames for display in game and leaderboards
+// Only alphanumeric characters, underscores, and hyphens allowed for clean display
 export const validateUsername = (username: string): boolean => {
-  const pattern = /^[a-zA-Z0-9_-]+$/;
-  return username.length >= 3 && username.length <= 20 && pattern.test(username);
+  const MIN_LENGTH = 3;
+  const MAX_LENGTH = 20;
+  const ALLOWED_PATTERN = /^[a-zA-Z0-9_-]+$/;
+  
+  return username.length >= MIN_LENGTH && 
+         username.length <= MAX_LENGTH && 
+         ALLOWED_PATTERN.test(username);
 };
 
+// Validates game session player count for optimal multiplayer experience
+// Sessions support 1-8 players for balanced gameplay and server performance
 export const validateSessionSize = (playerCount: number): boolean => {
-  return playerCount >= 1 && playerCount <= 8 && Number.isInteger(playerCount);
+  const MIN_PLAYERS = 1;
+  const MAX_PLAYERS = 8;
+  
+  return playerCount >= MIN_PLAYERS && 
+         playerCount <= MAX_PLAYERS && 
+         Number.isInteger(playerCount);
 };
 
-// Currency formatting
+/**
+ * Display Formatting Utilities
+ * Functions for consistent UI display across the application
+ */
+
+// Formats monetary amounts for display in UI and transaction records
+// Uses USD currency format consistent with Whop platform requirements
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -24,7 +55,8 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Date formatting
+// Formats dates for leaderboard and game history display
+// Uses short month format for compact display (e.g., "Jan 15, 2024")
 export const formatDate = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
@@ -33,6 +65,8 @@ export const formatDate = (date: Date): string => {
   }).format(date);
 };
 
+// Formats complete timestamps for detailed game session records
+// Includes time for precise game start/end tracking
 export const formatDateTime = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',

@@ -1,6 +1,17 @@
 # 🏎️ Multiplayer Road Fighter
 
+> **What is this?**  
+> A competitive multiplayer racing game where players pay real money to enter races and compete for daily cash prizes. Think of it as "classic arcade gaming meets online poker" - you use your racing skills to win money from other players.
+
 A modern remake of the classic Road Fighter game, designed for the Whop platform with multiplayer capabilities, entry fees, daily tokens, and leaderboards.
+
+## 🎯 How It Works
+
+1. **🎮 Play Classic Game**: Race cars, avoid obstacles, collect fuel
+2. **💰 Entry Fees**: Pay $1-$100 to join competitive races  
+3. **🏆 Win Money**: Best racer takes 50% of the daily prize pool
+4. **🎟️ Daily Tokens**: Get 3 free games per day, buy more if needed
+5. **📊 Fair Play**: Skill-based competition with anti-cheat protection
 
 ## ✨ Features
 

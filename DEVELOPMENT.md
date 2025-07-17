@@ -1,5 +1,8 @@
 # Multiplayer Road Fighter - Development Guide
 
+> **What is this project?**  
+> This is a multiplayer remake of the classic Road Fighter racing game, designed to run on the Whop platform. Players pay an entry fee to join games, compete in real-time racing sessions, and winners earn money from a daily prize pool. Think of it as "competitive classic gaming with real money stakes."
+
 A comprehensive guide for developers and AI assistants to understand, develop, and maintain the Multiplayer Road Fighter game for the Whop platform.
 
 ## 📋 Table of Contents

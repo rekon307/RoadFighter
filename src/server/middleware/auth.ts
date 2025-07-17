@@ -25,15 +25,74 @@ const tokenSchema = z.object({
   exp: z.number(),
 });
 
+// Helper function to extract and validate auth token from request header
+function extractTokenFromHeader(authHeader: string | undefined): string | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7); // Remove 'Bearer ' prefix
+}
+
+// Helper function to verify JWT token and return decoded payload
+function verifyJwtToken(token: string): any {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET not configured');
+  }
+  
+  return jwt.verify(token, jwtSecret);
+}
+
+// Helper function to get user from cache or database
+async function getUserFromCacheOrDB(userId: string) {
+  const cacheKey = CACHE_KEYS.USER_PROFILE(userId);
+  
+  // Try cache first
+  let user = await cache.get<{
+    id: string;
+    whopUserId: string;
+    username: string;
+    creditsBalance: any;
+    tokensRemaining: number;
+    lastTokenReset: Date;
+  }>(cacheKey);
+
+  if (!user) {
+    // Fetch from database if not in cache
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        whopUserId: true,
+        username: true,
+        creditsBalance: true,
+        tokensRemaining: true,
+        lastTokenReset: true,
+      },
+    });
+
+    if (!dbUser) {
+      return null;
+    }
+
+    user = dbUser;
+    // Cache user data for future requests
+    await cache.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
+  }
+
+  return user;
+}
+
+// Main authentication middleware
 export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Step 1: Extract token from Authorization header
+    const token = extractTokenFromHeader(req.headers.authorization);
+    if (!token) {
       res.status(401).json({
         error: ERROR_CODES.UNAUTHORIZED,
         message: 'Access token required',
@@ -41,31 +100,27 @@ export async function authMiddleware(
       return;
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Verify JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error('❌ JWT_SECRET not configured');
-      res.status(500).json({
-        error: ERROR_CODES.INTERNAL_ERROR,
-        message: 'Authentication service unavailable',
-      });
-      return;
-    }
-
+    // Step 2: Verify JWT token
     let decoded: any;
     try {
-      decoded = jwt.verify(token, jwtSecret);
+      decoded = verifyJwtToken(token);
     } catch (error) {
-      res.status(401).json({
-        error: ERROR_CODES.INVALID_TOKEN,
-        message: 'Invalid or expired token',
-      });
+      if (error instanceof Error && error.message === 'JWT_SECRET not configured') {
+        console.error('❌ JWT_SECRET not configured');
+        res.status(500).json({
+          error: ERROR_CODES.INTERNAL_ERROR,
+          message: 'Authentication service unavailable',
+        });
+      } else {
+        res.status(401).json({
+          error: ERROR_CODES.INVALID_TOKEN,
+          message: 'Invalid or expired token',
+        });
+      }
       return;
     }
 
-    // Validate token payload
+    // Step 3: Validate token payload structure
     const tokenData = tokenSchema.safeParse(decoded);
     if (!tokenData.success) {
       res.status(401).json({
@@ -77,46 +132,17 @@ export async function authMiddleware(
 
     const { userId, whopUserId } = tokenData.data;
 
-    // Check cache first
-    const cacheKey = CACHE_KEYS.USER_PROFILE(userId);
-    let user = await cache.get<{
-      id: string;
-      whopUserId: string;
-      username: string;
-      creditsBalance: any;
-      tokensRemaining: number;
-      lastTokenReset: Date;
-    }>(cacheKey);
-
+    // Step 4: Get user data from cache or database
+    const user = await getUserFromCacheOrDB(userId);
     if (!user) {
-      // Fetch user from database
-      const dbUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          whopUserId: true,
-          username: true,
-          creditsBalance: true,
-          tokensRemaining: true,
-          lastTokenReset: true,
-        },
+      res.status(401).json({
+        error: ERROR_CODES.USER_NOT_FOUND,
+        message: 'User not found',
       });
-
-      if (!dbUser) {
-        res.status(401).json({
-          error: ERROR_CODES.USER_NOT_FOUND,
-          message: 'User not found',
-        });
-        return;
-      }
-
-      user = dbUser;
-      
-      // Cache user data
-      await cache.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
+      return;
     }
 
-    // Verify whopUserId matches
+    // Step 5: Verify token's whopUserId matches user's whopUserId
     if (user.whopUserId !== whopUserId) {
       res.status(401).json({
         error: ERROR_CODES.INVALID_TOKEN,
@@ -125,7 +151,7 @@ export async function authMiddleware(
       return;
     }
 
-    // Attach user to request
+    // Step 6: Attach authenticated user to request object
     req.user = {
       id: user.id,
       whopUserId: user.whopUserId,
