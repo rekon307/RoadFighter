@@ -114,7 +114,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
 
 // Helper function to handle database transactions
 export async function withTransaction<T>(
-  callback: (tx: PrismaClient) => Promise<T>
+  callback: (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => Promise<T>
 ): Promise<T> {
   return await prisma.$transaction(callback);
 }

@@ -9,7 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { initializeDatabase } from './services/database.js';
-import { initializeRedis } from './services/redis.js';
+import { initializeRedis, initializeCacheService } from './services/redis.js';
 import { initializeWebSocketServer } from './services/websocket.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -130,6 +130,10 @@ async function startServer() {
     // Initialize Redis connection
     await initializeRedis();
     console.log('✅ Redis connection established');
+    
+    // Initialize cache service
+    initializeCacheService();
+    console.log('✅ Cache service initialized');
     
     // Initialize WebSocket server
     initializeWebSocketServer(io);

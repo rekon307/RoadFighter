@@ -9,7 +9,6 @@ export async function initializeRedis(): Promise<void> {
     
     redisClient = createClient({
       url: redisUrl,
-      retry_unfulfilled_commands: true,
       socket: {
         reconnectStrategy: (retries) => {
           if (retries > 10) {
@@ -262,7 +261,11 @@ export class CacheService {
   }
 }
 
-export const cache = new CacheService();
+export let cache: CacheService;
+
+export function initializeCacheService() {
+  cache = new CacheService();
+}
 
 export async function disconnectRedis(): Promise<void> {
   try {

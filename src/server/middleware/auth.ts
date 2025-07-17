@@ -79,11 +79,18 @@ export async function authMiddleware(
 
     // Check cache first
     const cacheKey = CACHE_KEYS.USER_PROFILE(userId);
-    let user = await cache.get(cacheKey);
+    let user = await cache.get<{
+      id: string;
+      whopUserId: string;
+      username: string;
+      creditsBalance: any;
+      tokensRemaining: number;
+      lastTokenReset: Date;
+    }>(cacheKey);
 
     if (!user) {
       // Fetch user from database
-      user = await prisma.user.findUnique({
+      const dbUser = await prisma.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -95,7 +102,7 @@ export async function authMiddleware(
         },
       });
 
-      if (!user) {
+      if (!dbUser) {
         res.status(401).json({
           error: ERROR_CODES.USER_NOT_FOUND,
           message: 'User not found',
@@ -103,6 +110,8 @@ export async function authMiddleware(
         return;
       }
 
+      user = dbUser;
+      
       // Cache user data
       await cache.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
     }
@@ -315,7 +324,7 @@ export function generateToken(userId: string, whopUserId: string): string {
       expiresIn,
       issuer: 'multiplayer-road-fighter',
       audience: 'whop-platform',
-    }
+    } as jwt.SignOptions
   );
 }
 
